@@ -14,6 +14,7 @@ import org.example.dinger.entity.User;
 import org.example.dinger.exception.RoleNotFoundException;
 import org.example.dinger.exception.UserNameAlreadyExistedException;
 import org.example.dinger.exception.UserNotFoundException;
+import org.example.dinger.jwt.JwtTokenProvider;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -31,25 +32,26 @@ public class AuthService {
     private final RoleDao roleDao;
     private final AuthenticationManager authenticationManager;
     private final EntityManager entityManager;
+    private final JwtTokenProvider jwtTokenProvider;
 
-    public AuthService(UserDao userDao, PasswordEncoder passwordEncoder, RoleDao roleDao, AuthenticationManager authenticationManager, EntityManager entityManager) {
+    public AuthService(UserDao userDao, PasswordEncoder passwordEncoder, RoleDao roleDao, AuthenticationManager authenticationManager, EntityManager entityManager, JwtTokenProvider jwtTokenProvider) {
         this.userDao = userDao;
         this.passwordEncoder = passwordEncoder;
         this.roleDao = roleDao;
         this.authenticationManager = authenticationManager;
         this.entityManager = entityManager;
+        this.jwtTokenProvider = jwtTokenProvider;
     }
 
     public String login(LoginDto loginDto) {
-        // Authenticate the user using AuthenticationManager
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
+
+        Authentication authentication = new UsernamePasswordAuthenticationToken(
                         loginDto.getUserNameOrEmail(),
                         loginDto.getPassword()
-                )
         );
+        Authentication authenticated = authenticationManager.authenticate(authentication);
         SecurityContextHolder.getContext().setAuthentication(authentication);
-        return "User logged in successfully!";
+        return jwtTokenProvider.generateToken(authentication);
     }
 
     public String register(RegisterDto registerDto) {

@@ -18,21 +18,18 @@ public class ProjectController {
 
     private final ProjectService projectService;
 
-
     public ProjectController(ProjectService projectService) {
         this.projectService = projectService;
-
     }
 
-    @PostMapping("/create/project")
-    public ResponseEntity<Project> createProject(@RequestBody ProjectDto projectDto, @RequestParam Integer userId) {
+    @PostMapping("/create/{userId}")
+    public ResponseEntity<Project> createProject(@PathVariable Integer userId, @RequestBody ProjectDto projectDto) {
         Project project = projectService.createProject(projectDto, userId);
         return ResponseEntity.ok(project);
-
     }
+
     @GetMapping("/all")
     public List<Project> getAllProjects(){
-
         return projectService.getAllProjects();
     }
 

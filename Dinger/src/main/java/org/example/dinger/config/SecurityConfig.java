@@ -1,6 +1,8 @@
 package org.example.dinger.config;
 
 import lombok.RequiredArgsConstructor;
+import org.example.dinger.jwt.JwtAuthenticationEntryPoint;
+import org.example.dinger.jwt.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -14,23 +16,20 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
-@EnableMethodSecurity(securedEnabled = true)
 public class SecurityConfig {
     private final UserDetailsService userDetailsService;
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
 
-    public SecurityConfig(UserDetailsService userDetailsService) {
+    public SecurityConfig(UserDetailsService userDetailsService,JwtAuthenticationFilter jwtAuthenticationFilter, JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint) {
         this.userDetailsService = userDetailsService;
+        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        this.jwtAuthenticationEntryPoint = jwtAuthenticationEntryPoint;
     }
 
-    @Bean
-    public DaoAuthenticationProvider authenticationProvider() {
-        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
-        authProvider.setUserDetailsService(userDetailsService);
-        authProvider.setPasswordEncoder(passwordEncoder());
-        return authProvider;
-    }
 
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {
@@ -50,13 +49,19 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/auth/approve/{userId}").hasRole("SUPER_ADMIN")
                 .requestMatchers(HttpMethod.POST, "/auth/block/{userId}").hasRole("SUPER_ADMIN")
                 .requestMatchers(HttpMethod.GET, "/auth/filter").hasRole("SUPER_ADMIN")
-                .requestMatchers(HttpMethod.GET, "/api/projects/**").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/projects/create/{userId}").hasRole("REGISTERED_USER")
-                .requestMatchers(HttpMethod.GET, "/api/projects/filter/*").hasRole("REGISTERED_USER")
+                .requestMatchers(HttpMethod.GET, "/api/projects/**").hasAnyRole("SUPER_ADMIN","REGISTERED_USER")
+                .requestMatchers(HttpMethod.POST, "/api/projects/create/**").hasRole("REGISTERED_USER")
+                .requestMatchers(HttpMethod.GET, "/api/projects/filter/**").hasRole("REGISTERED_USER")
                 .requestMatchers(HttpMethod.PUT, "/api/projects/**").hasRole("REGISTERED_USER")
                 .requestMatchers(HttpMethod.DELETE, "/api/projects/**").hasRole("REGISTERED_USER")
                 .anyRequest().authenticated()
         );
+        http.exceptionHandling(exception -> {
+            exception
+                    .authenticationEntryPoint(jwtAuthenticationEntryPoint);
+        });
+        http.addFilterBefore(jwtAuthenticationFilter,
+                UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
